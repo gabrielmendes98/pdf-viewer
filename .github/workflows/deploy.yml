@@ -1,0 +1,31 @@
+name: Deploy to AWS S3 and Invalidation on CloudFront
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload HTML and PDF to S3
+        run: |
+          aws s3 cp index.html s3://meu-bucket-cartao-visita/
+          aws s3 cp cartao_de_visita.pdf s3://meu-bucket-cartao-visita/
+      
+      - name: Invalidate CloudFront
+        run: |
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Origins.Items[?DomainName=='meu-bucket-cartao-visita.s3.amazonaws.com']].Id | [0]" --output text)
+          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
